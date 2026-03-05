@@ -1,0 +1,38 @@
+# Virtual environment
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Generated project folders
+uploads/
+audio/
+subtitles/
+
+# Environment variables
+.env
+
+# IDE settings
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Python build files
+build/
+dist/
+*.egg-info/
+
+# Machine learning model files
+*.pt
+*.bin
+*.safetensors
