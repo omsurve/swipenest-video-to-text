@@ -1,48 +1,39 @@
 from transformers import pipeline
-from indic_transliteration import sanscript
-from indic_transliteration.sanscript import transliterate
+from app.services.text_processor import process_subtitle_text
 
 
+# Load Whisper model once (important for performance)
 pipe = pipeline(
     "automatic-speech-recognition",
-    model="openai/whisper-medium",
+    model="openai/whisper-large-v3",
     return_timestamps=True
 )
 
 
-def convert_to_hinglish(text):
-    """
-    Converts Hindi (Devanagari) text to Hinglish (Roman script).
-    If text is already English, it returns unchanged.
-    """
-    try:
-        return transliterate(text, sanscript.DEVANAGARI, sanscript.ITRANS)
-    except:
-        return text
-
-
 def transcribe(audio_path):
-    lang = detect_language(audio_path)
-    pipe = get_pipeline(lang)
+    """
+    Transcribe full audio and return processed text.
+    """
     result = pipe(audio_path)
 
     text = result["text"]
 
-    # Convert Hindi → Hinglish
-    text = convert_to_hinglish(text)
+    # Apply subtitle processing (Hinglish + spell correction + CamelCase)
+    text = process_subtitle_text(text)
 
     return text
 
 
 def transcribe_audio(audio_path):
-    lang = detect_language(audio_path)
-    pipe = get_pipeline(lang)
+    """
+    Transcribe audio with timestamps and return chunks.
+    """
     result = pipe(audio_path)
 
     chunks = result["chunks"]
 
-    # Convert Hindi → Hinglish for each chunk
+    # Process each subtitle chunk
     for chunk in chunks:
-        chunk["text"] = convert_to_hinglish(chunk["text"])
+        chunk["text"] = process_subtitle_text(chunk["text"])
 
     return chunks
