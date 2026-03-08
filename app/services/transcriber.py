@@ -1,51 +1,52 @@
-from transformers import pipeline, WhisperProcessor, WhisperForConditionalGeneration
-import torch
+from faster_whisper import WhisperModel
 
-# Load processor and model for language detection
-processor = WhisperProcessor.from_pretrained("openai/whisper-small")
-model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-small")
+# Load Faster-Whisper model once (better performance)
+model = WhisperModel(
+    "large-v3",
+    device="cpu",        # change to "cuda" if you have GPU
+    compute_type="int8"  # good balance of speed and memory for CPU
+)
+
 
 def detect_language(audio_path):
-    # Load audio
-    from transformers import WhisperFeatureExtractor
-    feature_extractor = WhisperFeatureExtractor.from_pretrained("openai/whisper-small")
-    audio = feature_extractor(audio_path, return_tensors="pt")["input_features"]
-    
-    # Generate language token
-    with torch.no_grad():
-        generated_ids = model.generate(
-            audio,
-            max_length=1,
-            num_beams=1,
-            return_dict_in_generate=True,
-            output_scores=True,
-        )
-    
-    # Get the predicted language
-    language_token = generated_ids.sequences[0][0]
-    language = processor.decode(language_token, skip_special_tokens=True)
+    """
+    Detect language of the audio using Faster-Whisper.
+    Returns language code like 'en', 'hi', etc.
+    """
+    segments, info = model.transcribe(audio_path, beam_size=1)
+
+    # Faster-Whisper automatically detects language
+    language = info.language
+
     return language
 
-def get_pipeline(language):
-    if language == "en":
-        model_name = "openai/whisper-base.en"
-    else:
-        model_name = "openai/whisper-medium"
-    
-    return pipeline(
-        "automatic-speech-recognition",
-        model=model_name,
-        return_timestamps=True   
-    )
 
 def transcribe(audio_path):
-    lang = detect_language(audio_path)
-    pipe = get_pipeline(lang)
-    result = pipe(audio_path)
-    return result["text"]
+    """
+    Return full transcription text (string).
+    Keeps same behavior as previous implementation.
+    """
+    segments, info = model.transcribe(audio_path)
+
+    text = " ".join([segment.text.strip() for segment in segments])
+
+    return text
+
 
 def transcribe_audio(audio_path):
-    lang = detect_language(audio_path)
-    pipe = get_pipeline(lang)
-    result = pipe(audio_path)
-    return result["chunks"]
+    """
+    Return transcription chunks with timestamps.
+    Structure matches your previous 'chunks' output
+    so subtitle generator will still work.
+    """
+    segments, info = model.transcribe(audio_path)
+
+    chunks = []
+
+    for segment in segments:
+        chunks.append({
+            "timestamp": (segment.start, segment.end),
+            "text": segment.text.strip()
+        })
+
+    return chunks
